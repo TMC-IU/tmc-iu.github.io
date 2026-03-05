@@ -83,6 +83,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  function sortPastEventsByDate(gridEl) {
+    var pastCards = Array.prototype.slice.call(gridEl.querySelectorAll('.past-event'));
+    var decoratedCards = pastCards.map(function(card, index) {
+      var eventDate = card.getAttribute('data-event-date') || '';
+      return {
+        card: card,
+        index: index,
+        hasDate: /^\d{8}$/.test(eventDate),
+        eventDate: eventDate
+      };
+    });
+
+    decoratedCards.sort(function(a, b) {
+      if (a.hasDate && b.hasDate && a.eventDate !== b.eventDate) {
+        return a.eventDate > b.eventDate ? -1 : 1;
+      }
+      if (a.hasDate !== b.hasDate) {
+        return a.hasDate ? -1 : 1;
+      }
+      return a.index - b.index;
+    });
+
+    decoratedCards.forEach(function(item) {
+      gridEl.appendChild(item.card);
+    });
+  }
+
   // Events page: move past events from upcoming to past events grid
   var eventsList = document.getElementById('eventsList');
   var pastEventsGrid = document.getElementById('pastEventsGrid');
@@ -112,6 +139,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If this event already exists in the curated past-events grid, do not duplicate it.
         if (alreadyInPastGrid) {
+          var existingPastCards = pastEventsGrid.querySelectorAll('.past-event');
+          Array.prototype.forEach.call(existingPastCards, function(existingCard) {
+            var existingTitleEl = existingCard.querySelector('.past-event__title');
+            var existingTitle = existingTitleEl ? existingTitleEl.textContent.trim().toLowerCase() : '';
+            if (existingTitle === normalizedTitle) {
+              existingCard.setAttribute('data-event-date', dateStr);
+            }
+          });
           card.remove();
           return;
         }
@@ -119,16 +154,19 @@ document.addEventListener('DOMContentLoaded', function() {
         var escapedTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         var pastEl = document.createElement('div');
         pastEl.className = 'past-event past-event--logo-placeholder animate-on-scroll';
+        pastEl.setAttribute('data-event-date', dateStr);
         pastEl.innerHTML = '<img class="past-event__image" src="images/TMC_Logo.png" alt="' + escapedTitle + '">' +
           '<div class="past-event__overlay">' +
           '<h4 class="past-event__title">' + escapedTitle + '</h4>' +
           '<span class="past-event__date">' + formattedDate + '</span>' +
           '</div>';
-        pastEventsGrid.insertBefore(pastEl, pastEventsGrid.firstChild);
+        pastEventsGrid.appendChild(pastEl);
         existingPastTitles.add(normalizedTitle);
         card.remove();
       }
     });
+
+    sortPastEventsByDate(pastEventsGrid);
   }
 
   // Home page: always show only the next 2 upcoming events, sorted by date
